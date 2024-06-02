@@ -51,7 +51,7 @@ export default class PlantsStack extends cdk.Stack {
 
     // DynamoDB data table
     const { importSource, sourceDataBucketDeployment } = this.sourceData();
-    const table = new Table(this, 'UserDatabase', {
+    const table = new Table(this, 'Plants', {
       billingMode: BillingMode.PAY_PER_REQUEST,
       partitionKey: {
         name: 'id',
@@ -108,7 +108,7 @@ export default class PlantsStack extends cdk.Stack {
    * Based on https://blog.serverlessadvocate.com/auto-populate-dynamodb-table-with-data-06856d8ff5e9
    */
   sourceData(): { importSource: ImportSourceSpecification, sourceDataBucketDeployment: BucketDeployment; } {
-    const sourceDataPath = './lib/plants.csv';
+    const sourceDataPath = './lib/plants';
     const sourceDataBucket = PrivateBucket.expendable(this, 'sourceDataBucket');
 
     // create the deployment of plant data into s3 for the table import
@@ -174,14 +174,14 @@ export default class PlantsStack extends cdk.Stack {
 
   api(
     builds: Bucket,
-    aTable: Table,
+    plants: Table,
     slackQueue: Queue,
   ): Function {
     // Lambda for the Node API
     const api = ZipFunction.node(this, 'api', {
       environment: {
         SLACK_QUEUE_URL: slackQueue.queueUrl,
-        TABLE: aTable.tableName,
+        PLANTS: plants.tableName,
       },
       functionProps: {
         memorySize: 3008,
@@ -189,7 +189,7 @@ export default class PlantsStack extends cdk.Stack {
       },
     });
 
-    aTable.grantReadWriteData(api);
+    plants.grantReadData(api);
     slackQueue.grantSendMessages(api);
 
     return api;
