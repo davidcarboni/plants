@@ -338,27 +338,27 @@ export async function findItems(
 //   return result;
 // }
 
-// /**
-//  * https://stackoverflow.com/questions/44589967/how-to-fetch-scan-all-items-from-aws-dynamodb-using-node-js
-//  * @param tableName DynamoDB table name
-//  * @returns An array containing all the items (could get large!)
-//  */
-// export async function listItems(tableName: string): Promise<{ [key: string]: any }[]> {
-//   const params: ScanInput = {
-//     TableName: tableName,
-//   };
+/**
+ * https://stackoverflow.com/questions/44589967/how-to-fetch-scan-all-items-from-aws-dynamodb-using-node-js
+ * @param tableName DynamoDB table name
+ * @returns An array containing all the items (could get large!)
+ */
+export async function listItems(tableName: string): Promise<{ [key: string]: any; }[]> {
+  const params: ScanCommandInput = {
+    TableName: tableName,
+  };
 
-//   const result: { [key: string]: any }[] = [];
-//   let items;
-//   do {
-//     // eslint-disable-next-line no-await-in-loop
-//     items = await ddb.scan(params).promise();
-//     items.Items?.forEach((item) => result.push(item));
-//     params.ExclusiveStartKey = items.LastEvaluatedKey;
-//   } while (typeof items.LastEvaluatedKey !== 'undefined');
+  let result: ScanCommandOutput;
+  const items: Record<string, any>[] = [];
 
-//   return result;
-// }
+  do {
+    result = await documentClient.send(new ScanCommand(params));
+    if (result.Items) items.push(result.Items);
+    params.ExclusiveStartKey = result.LastEvaluatedKey;
+  } while (typeof result.LastEvaluatedKey !== 'undefined');
+
+  return items;
+}
 
 /**
  * Data migration for a set of DynamoDB iems.
