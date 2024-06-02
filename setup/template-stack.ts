@@ -64,6 +64,17 @@ export default class TemplateStack extends cdk.Stack {
     // NB the scloud constructs will create most of the secrets you need automatically
     githubActions(this).addGhaSecret('secretMcSecretFace', 'test'); // 'secretMcSecretFace' will be translated to 'SECRET_MC_SECRET_FACE' in Github Actions
 
+    // Cloudfront function association:
+    const defaultBehavior: Partial<cloudfront.BehaviorOptions> = {
+      functionAssociations: [{
+        function: new cloudfront.Function(this, 'staticURLs', {
+          code: cloudfront.FunctionCode.fromFile({ filePath: './lib/cfFunction.js' }),
+          comment: 'Rewrite static URLs to .html so they get forwarded to s3',
+        }),
+        eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+      }],
+    };
+
     // Create the frontend and API using Cloudfront
     // The following calls will create variables in Github Actions that can be used to deploy the frontend and API:
     // * API_LAMBDA - the name of the Lambda function to update when deploying the API
@@ -75,13 +86,8 @@ export default class TemplateStack extends cdk.Stack {
       domainName: envVar('DOMAIN_NAME'),
       defaultIndex: true,
       redirectWww: true,
-      functionAssociation: {
-        // Enables mappling paths like /privacy to /privacy.html so they can be served from s3
-        function: new cloudfront.Function(this, 'cfFunction', {
-          code: cloudfront.FunctionCode.fromFile({ filePath: './lib/cfFunction.js' }),
-          comment: 'Rewrite URLs to .html and redirect /register, /iphone and /android',
-        }),
-        eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+      distributionProps: {
+        defaultBehavior: defaultBehavior as cloudfront.BehaviorOptions,
       },
     });
 
