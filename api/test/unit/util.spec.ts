@@ -9,7 +9,7 @@ describe('util.ts', () => {
       expect(env('IS_SET')).to.equal('value');
     });
 
-    it('Should theow an exception if the env var isn\'t set', () => {
+    it('Should throw an exception if the env var isn\'t set', () => {
       assert.throws(() => env('missing'));
     });
   });
