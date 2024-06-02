@@ -343,7 +343,7 @@ export async function findItems(
  * @param tableName DynamoDB table name
  * @returns An array containing all the items (could get large!)
  */
-export async function listItems(tableName: string): Promise<{ [key: string]: any; }[]> {
+export async function listItems(tableName: string): Promise<Record<string, any>[]> {
   const params: ScanCommandInput = {
     TableName: tableName,
   };
