@@ -2,14 +2,17 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
   Cognito, BuildsBucket, QueueFunction, WebRoutes, ZipFunction, githubActions,
+  PrivateBucket,
 } from '@scloud/cdk-patterns';
-import { AttributeType, BillingMode, Table } from 'aws-cdk-lib/aws-dynamodb';
+import {
+  AttributeType, BillingMode, ImportSourceSpecification, InputCompressionType, InputFormat, Table,
+} from 'aws-cdk-lib/aws-dynamodb';
 import { Function } from 'aws-cdk-lib/aws-lambda';
 import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
 
 function envVar(name: string, fallback?: string): string {
   const value = process.env[name] || fallback;
@@ -46,15 +49,19 @@ export default class PlantsStack extends cdk.Stack {
     //   removalPolicy: cdk.RemovalPolicy.DESTROY, // TEMP so you can clean up the stack without resources being left behind
     // });
 
-    // Example DynamoDB table
-    const aTable = new Table(this, 'table', {
+    // DynamoDB data table
+    const { importSource, sourceDataBucketDeployment } = this.sourceData();
+    const table = new Table(this, 'UserDatabase', {
       billingMode: BillingMode.PAY_PER_REQUEST,
       partitionKey: {
         name: 'id',
         type: AttributeType.STRING,
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY, // TEMP so you can clean up the stack without resources being left behind
+      importSource,
+
     });
+    table.node.addDependency(sourceDataBucketDeployment);
 
     // Example Github Actions variables
     // NB the scloud constructs will create most of the variables you need automatically
@@ -80,7 +87,7 @@ export default class PlantsStack extends cdk.Stack {
     // * API_LAMBDA - the name of the Lambda function to update when deploying the API
     // * CLOUDFRONT_BUCKET - for uploading the frontend
     // * CLOUDFRONT_DISTRIBUTIONID - for invalidating the Cloudfront cache
-    const api = this.api(builds, aTable, slackQueue);
+    const api = this.api(builds, table, slackQueue);
     WebRoutes.routes(this, 'cloudfront', { '/api/*': api }, {
       zone,
       domainName: envVar('DOMAIN_NAME'),
@@ -95,6 +102,29 @@ export default class PlantsStack extends cdk.Stack {
     const owner = envVar('OWNER', process.env.USERNAME); // Either OWNER, or USERNAME environment variables can be used
     const repo = envVar('REPO');
     githubActions(this).ghaOidcRole({ owner, repo });
+  }
+
+  /**
+   * Based on https://blog.serverlessadvocate.com/auto-populate-dynamodb-table-with-data-06856d8ff5e9
+   */
+  sourceData(): { importSource: ImportSourceSpecification, sourceDataBucketDeployment: BucketDeployment; } {
+    const sourceDataPath = './lib/plants.csv';
+    const sourceDataBucket = PrivateBucket.expendable(this, 'sourceDataBucket');
+
+    // create the deployment of plant data into s3 for the table import
+    const sourceDataBucketDeployment = new BucketDeployment(this, 'sourceDataBucketDeployment', {
+      sources: [Source.asset(sourceDataPath)],
+      destinationBucket: sourceDataBucket,
+    });
+
+    // we only pre-populate the table in non prod stages
+    const importSource: ImportSourceSpecification = {
+      bucket: sourceDataBucket,
+      inputFormat: InputFormat.csv(),
+      compressionType: InputCompressionType.NONE,
+    };
+
+    return { importSource, sourceDataBucketDeployment };
   }
 
   /**
