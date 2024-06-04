@@ -7,7 +7,7 @@ import {
 import {
   AttributeType, BillingMode, ImportSourceSpecification, InputCompressionType, InputFormat, Table,
 } from 'aws-cdk-lib/aws-dynamodb';
-import { Function } from 'aws-cdk-lib/aws-lambda';
+import { Code, Function } from 'aws-cdk-lib/aws-lambda';
 import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
@@ -185,7 +185,7 @@ export default class PlantsStack extends cdk.Stack {
       },
       functionProps: {
         memorySize: 3008,
-        // code: Code.fromBucket(builds, 'api.zip'), // This can be uncommented once you've run a build of the API code
+        code: Code.fromBucket(builds, 'api.zip'), // This can be uncommented once you've run a build of the API code
       },
     });
 
