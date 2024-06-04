@@ -11,8 +11,10 @@ export default async function search(request: Request): Promise<Response> {
   const result: Record<string, unknown>[] = [];
   plants.forEach((plant) => {
     let match = false;
+    console.log('plant', plant)
     Object.values(plant).forEach((value) => {
-      if (value.toLowerCase().includes(request.query.search.toLowerCase())) match = true;
+      console.log('value', value);
+      if ((value || '').toLowerCase().includes(request.query.search.toLowerCase())) match = true;
     });
     if (match) result.push(plant);
   });
