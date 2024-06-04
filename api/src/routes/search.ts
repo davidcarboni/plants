@@ -7,8 +7,9 @@ export default async function search(request: Request): Promise<Response> {
   if (!request.query.search) return { statusCode: 400, body: 'search query parameter is required' };
 
   // Find anything that matches
-  const plants = await ddb.listItems(env('PLANTS'));
   const result: Record<string, unknown>[] = [];
+  const plants = await ddb.listItems(env('PLANTS'));
+  console.log('plants', plants)
   plants.forEach((plant) => {
     let match = false;
     console.log('plant', plant)
