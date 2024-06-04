@@ -9,10 +9,11 @@ import {
 } from 'aws-cdk-lib/aws-dynamodb';
 import { Code, Function } from 'aws-cdk-lib/aws-lambda';
 import { HostedZone, IHostedZone } from 'aws-cdk-lib/aws-route53';
-import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { Bucket, EventType, IBucket } from 'aws-cdk-lib/aws-s3';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
+import { S3EventSourceV2 } from 'aws-cdk-lib/aws-lambda-event-sources';
 
 function envVar(name: string, fallback?: string): string {
   const value = process.env[name] || fallback;
@@ -51,6 +52,7 @@ export default class PlantsStack extends cdk.Stack {
 
     // DynamoDB data table
     const { importSource, sourceDataBucketDeployment } = this.sourceData();
+    // this.data(builds, table, sourceDataBucketDeployment.deployedBucket, slackQueue);
     const table = new Table(this, 'Plants', {
       billingMode: BillingMode.PAY_PER_REQUEST,
       partitionKey: {
@@ -59,7 +61,6 @@ export default class PlantsStack extends cdk.Stack {
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY, // TEMP so you can clean up the stack without resources being left behind
       importSource,
-
     });
     table.node.addDependency(sourceDataBucketDeployment);
 
@@ -193,5 +194,30 @@ export default class PlantsStack extends cdk.Stack {
     slackQueue.grantSendMessages(api);
 
     return api;
+  }
+
+  data(
+    builds: Bucket,
+    plants: Table,
+    bucket: IBucket,
+    slackQueue: Queue,
+  ): Function {
+    const data = ZipFunction.node(this, 'data', {
+      environment: {
+        SLACK_QUEUE_URL: slackQueue.queueUrl,
+        BUCKET: bucket.bucketName,
+        PLANTS: plants.tableName,
+      },
+      functionProps: {
+        memorySize: 3008,
+        // code: Code.fromBucket(builds, 'api.zip'), // This can be uncommented once you've run a build of the API code
+      },
+    });
+    data.addEventSource(new S3EventSourceV2(bucket, { events: [EventType.OBJECT_CREATED] }));
+
+    plants.grantReadWriteData(data);
+    slackQueue.grantSendMessages(data);
+
+    return data;
   }
 }
