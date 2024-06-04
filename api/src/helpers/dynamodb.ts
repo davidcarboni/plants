@@ -353,7 +353,7 @@ export async function listItems(tableName: string): Promise<Record<string, any>[
 
   do {
     result = await documentClient.send(new ScanCommand(params));
-    if (result.Items) items.push(result.Items);
+    if (result.Items) items.push(...result.Items);
     params.ExclusiveStartKey = result.LastEvaluatedKey;
   } while (typeof result.LastEvaluatedKey !== 'undefined');
 
