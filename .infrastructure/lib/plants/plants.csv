@@ -1,4 +1,5 @@
-id,name,age
-Persicaria amphibia,Willow grass,native
-Eriophorum angustifolium,Bog cotton,native
-Rumex acetosa,Sorrel,native
+id,name,classification,properties
+Persicaria amphibia,Willow grass,native,inedible
+Eriophorum angustifolium,Bog cotton,native,inedible
+Rumex acetosa,Sorrel,native,edible
+Amanita muscaria,Fly agaric,native,poisonous edible psychoactive
